@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Absensi Misdinar</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  background: #594a42;
+  display:flex;
+  justify-content:center;
+  padding:20px;
+  margin:0;
+}
+
+.container{
+  background:white;
+  padding:20px;
+  border-radius:12px;
+  width:400px;
+  text-align:center;
+}
+
+.logo img{
+  width:90px;
+  margin-bottom:10px;
+}
+
+h2{
+  margin-top:0;
+}
+
+label{
+  font-weight:bold;
+  display:block;
+  text-align:left;
+  margin-top:10px;
+}
+
+select, input, button{
+  width:100%;
+  padding:8px;
+  margin-top:5px;
+  margin-bottom:8px;
+  border-radius:6px;
+  border:1px solid #ccc;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  box-sizing:border-box;
+}
+
+button{
+  background:#594a42;
+  color:white;
+  border:none;
+  font-weight:bold;
+  cursor:pointer;
+  margin-top:10px;
+}
+
+button:hover{
+  opacity:0.9;
+}
+
+.countdown{
+  font-size:18px;
+  font-weight:bold;
+  color:#594a42;
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="logo">
+<img src="https://res.cloudinary.com/dz8b6nty0/image/upload/v1771385353/Logo_Misdinar_MKK-removebg-preview_yov8ag.png">
+</div>
+
+<h2>Absensi Misdinar</h2>
+
+<p id="tanggal"></p>
+
+<label>Tipe Misa</label>
+<select id="misaSelect"></select>
+
+<label>Petugas</label>
+<div id="membersArea"></div>
+
+<button onclick="submitForm()">Submit</button>
+
+</div>
+
+<script>
+
+const API_URL = "https://script.google.com/macros/s/AKfycbw_ur8ox6nLoVTOJLkYbr9QHznfuKTanynbxrkgnE3XPVKCMWzNGA2x2NVot0tiQaPcGg/exec";
+let allMembers = [];
+
+// Tanggal realtime
+function updateTanggal(){
+  const now = new Date();
+  document.getElementById("tanggal").innerText =
+    "Tanggal: " + now.toLocaleDateString("id-ID") +
+    " | Jam: " + now.toLocaleTimeString("id-ID");
+}
+updateTanggal();
+setInterval(updateTanggal,1000);
+
+// Load data
+fetch(API_URL)
+.then(res => res.json())
+.then(data => {
+
+  allMembers = data.members;
+
+  const misaSelect = document.getElementById("misaSelect");
+
+  // Placeholder supaya tidak auto pilih
+  misaSelect.innerHTML = `
+    <option value="" disabled selected>-- Pilih Misa --</option>
+  `;
+
+  data.misa.forEach(m => {
+    misaSelect.innerHTML +=
+      `<option value="${m[0]}">${m[1]}</option>`;
+  });
+
+  createMemberInputs();
+});
+
+// 12 textbox
+function createMemberInputs(){
+  const area = document.getElementById("membersArea");
+
+  for(let i=1;i<=12;i++){
+    area.innerHTML += `
+      <input list="memberList" id="name${i}" placeholder="Ketik nama...">
+    `;
+  }
+
+  let datalist = document.createElement("datalist");
+  datalist.id = "memberList";
+
+  allMembers.forEach(mem=>{
+    let option = document.createElement("option");
+    option.value = `${mem[1]} - ${mem[2]} (Angkatan ${mem[3]})`;
+    datalist.appendChild(option);
+  });
+
+  document.body.appendChild(datalist);
+}
+
+// Submit
+function submitForm(){
+
+  const idMisa = document.getElementById("misaSelect").value;
+
+  // Validasi misa wajib pilih
+  if(!idMisa){
+    alert("Silakan pilih tipe misa terlebih dahulu.");
+    return;
+  }
+
+  let selectedMembers = [];
+
+  for(let i=1;i<=12;i++){
+    const value = document.getElementById(`name${i}`).value;
+    if(value.trim() !== ""){
+
+      const found = allMembers.find(mem =>
+        value.includes(mem[1]) || value.includes(mem[2])
+      );
+
+      if(found){
+        selectedMembers.push({
+          memberId: found[0],
+          nama: value
+        });
+      }
+    }
+  }
+
+  if(selectedMembers.length === 0){
+    alert("Isi minimal 1 petugas.");
+    return;
+  }
+
+  // Kirim data
+  selectedMembers.forEach(member=>{
+    fetch(API_URL,{
+      method:"POST",
+      body: JSON.stringify({
+        idMisa: idMisa,
+        memberId: member.memberId,
+        nama: member.nama
+      })
+    });
+  });
+
+  // THANK YOU + COUNTDOWN
+  let countdown = 5;
+
+  document.querySelector(".container").innerHTML = `
+    <div class="logo">
+      <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSCEUNy61xkmW0FsrymGuhNPEEtSqFzHWDoWQ&s">
+    </div>
+
+    <h2 style="color:#594a42;">Terima Kasih </h2>
+    <p>Absensi berhasil dikirim.</p>
+    <div class="countdown">
+      Halaman akan tertutup dalam <span id="count">${countdown}</span> detik
+    </div>
+  `;
+
+  const interval = setInterval(() => {
+    countdown--;
+    document.getElementById("count").innerText = countdown;
+
+    if(countdown <= 0){
+      clearInterval(interval);
+
+      window.open('', '_self');
+      window.close();
+
+      // fallback kalau tidak bisa close
+      window.location.href = "about:blank";
+    }
+
+  }, 1000);
+}
+
+</script>
+
+</body>
+</html>
